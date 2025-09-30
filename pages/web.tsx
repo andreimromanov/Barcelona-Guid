@@ -37,7 +37,7 @@ export default function Web() {
   const [ratings, setRatings] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(false)
 
-  // поиск/сортировка (оставим базово)
+  // поиск/сортировка
   const [search, setSearch] = useState("")
   const [sort, setSort] = useState<"name" | "rating">("name")
 
@@ -76,44 +76,22 @@ export default function Web() {
     setLoading(false)
   }
 
+  // 🚀 Новый способ: прямая транзакция без подписей
   async function ratePlace(placeId: number, rating: number) {
-    if (!address) { alert(lang === "ru" ? "Сначала подключите кошелёк" : "Connect wallet first"); return }
-    const rater = address as `0x${string}`
-    const deadline = Math.floor(Date.now() / 1000) + 5 * 60
-
-    const nextNonce = await publicClient.readContract({
-      abi: ratingsAbi,
-      address: CONTRACT_ADDRESS,
-      functionName: "getNextNonce",
-      args: [rater, placeId],
-    })
-
-    const domain = { name: "BarcelonaRatings", version: "1", chainId: 8453, verifyingContract: CONTRACT_ADDRESS }
-    const types = {
-      Rating: [
-        { name: "rater", type: "address" },
-        { name: "placeId", type: "uint256" },
-        { name: "rating", type: "uint8" },
-        { name: "nonce", type: "uint256" },
-        { name: "deadline", type: "uint256" },
-      ],
+    if (!address) { 
+      alert(lang === "ru" ? "Сначала подключите кошелёк" : "Connect wallet first") 
+      return 
     }
-    const message = { rater, placeId, rating, nonce: Number(nextNonce), deadline }
-
-    const signature = await window.ethereum.request({
-      method: "eth_signTypedData_v4",
-      params: [rater, JSON.stringify({ domain, types, primaryType: "Rating", message })],
-    })
 
     const data = encodeFunctionData({
       abi: ratingsAbi,
-      functionName: "submitRating",
-      args: [rater, placeId, rating, deadline, signature],
+      functionName: "ratePlace",
+      args: [placeId, rating],
     })
 
     await window.ethereum.request({
       method: "eth_sendTransaction",
-      params: [{ from: rater, to: CONTRACT_ADDRESS, data, value: "0x0" }],
+      params: [{ from: address, to: CONTRACT_ADDRESS, data }],
     })
 
     loadRatings()
