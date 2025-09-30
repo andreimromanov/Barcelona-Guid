@@ -3,32 +3,45 @@ module.exports = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
+    "./app/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
       fontFamily: {
-        // основной текст
+        // текст
         sans: ["Inter", "system-ui", "Segoe UI", "Roboto", "Arial", "sans-serif"],
         // заголовки
         display: ["Montserrat", "Inter", "system-ui", "sans-serif"],
       },
       colors: {
-        // фирменный цвет приложения
+        // сине-бордовая палитра (FC Barcelona) + золото
         brand: {
-          50:  "#effef7",
-          100: "#d6fbe9",
-          200: "#b0f5d8",
-          300: "#7aebc2",
-          400: "#40dca8",
-          500: "#18c792",
-          600: "#0ea57c",
-          700: "#0e8666",
-          800: "#0f6953",
-          900: "#0d5444",
+          50:  "#f5f8ff",
+          100: "#e6eeff",
+          200: "#c8dbff",
+          300: "#9ebfff",
+          400: "#6f9bff",
+          500: "#3d73f5",
+          600: "#004D98", // blau
+          700: "#003B7A",
+          800: "#002B55",
+          900: "#00183B",
+        },
+        accent: {
+          500: "#A50044", // grana
+          600: "#860036",
+        },
+        gold: {
+          500: "#FDB913",
+          600: "#E7A400",
         },
       },
       boxShadow: {
-        card: "0 8px 24px rgba(16, 185, 129, .12)",
+        card: "0 10px 28px rgba(0,77,152,.15)",
+      },
+      borderRadius: {
+        xl: "14px",
+        "2xl": "18px",
       },
     },
   },
