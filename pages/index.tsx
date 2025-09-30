@@ -5,28 +5,34 @@ import { useRouter } from "next/router"
 export default function HomePage() {
   const router = useRouter()
 
-  // для обычного веба редиректим на мини-апп
+  // Авто-редирект в мини-апп
   useEffect(() => {
     router.replace("/frame")
   }, [router])
 
-  // JSON для embed (валидатор требует version:"1" и button)
+  // Базовый URL (удобно держать в переменной окружения на Vercel)
+  const SITE =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://barcelona-guide-eight.vercel.app"
+
+  // 🖼️ используем PNG-файлы из /public
+  const previewUrl = `${SITE}/preview.png`
+  const splashUrl = `${SITE}/splash.png`
+
   const miniappEmbed = {
     version: "1",
-    imageUrl: "https://fitness-diary-web.vercel.app/preview2.png",
+    imageUrl: previewUrl,
     button: {
-      title: "Open Fitness Diary",
+      title: "Open Barcelona Guide",
       action: {
         type: "launch_miniapp",
-        url: "https://fitness-diary-web.vercel.app/frame",
-        name: "Fitness Diary",
-        splashImageUrl: "https://fitness-diary-web.vercel.app/splash.png",
-        splashBackgroundColor: "#34D399",
+        url: `${SITE}/frame`,
+        name: "Barcelona Guide",
+        splashImageUrl: splashUrl,
+        splashBackgroundColor: "#4052B6", // фирменный синий
       },
     },
   }
 
-  // дублируем для b/c (action.type: launch_frame) — не обязательно, но полезно
   const legacyFrameEmbed = {
     ...miniappEmbed,
     button: {
@@ -38,21 +44,35 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>Fitness Diary</title>
+        <title>Barcelona Guide</title>
 
-        {/* OG для социальных превью */}
-        <meta property="og:title" content="Fitness Diary" />
-        <meta property="og:description" content="Onchain дневник: вес, калории и шаги" />
-        <meta property="og:image" content="https://fitness-diary-web.vercel.app/preview2.png" />
+        {/* OG / Twitter */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Barcelona Guide" />
+        <meta
+          property="og:description"
+          content="Rate the best places in Barcelona on Base. See community averages. Mini App for Warpcast."
+        />
+        <meta property="og:url" content={SITE} />
+        <meta property="og:image" content={previewUrl} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Barcelona Guide" />
+        <meta
+          name="twitter:description"
+          content="Rate Barcelona spots, view averages, and explore the city."
+        />
+        <meta name="twitter:image" content={previewUrl} />
+        <link rel="canonical" href={SITE} />
 
-        {/* ✅ главный метатег для Mini App embed */}
+        {/* Warpcast Miniapp / Frame */}
         <meta name="fc:miniapp" content={JSON.stringify(miniappEmbed)} />
-        {/* ↩️ обратная совместимость */}
         <meta name="fc:frame" content={JSON.stringify(legacyFrameEmbed)} />
       </Head>
 
       <main className="flex items-center justify-center h-screen">
-        <h1 className="text-2xl font-bold text-emerald-700">Загружается Fitness Diary…</h1>
+        <h1 className="text-2xl font-bold text-indigo-700">
+          Загружается Barcelona Guide…
+        </h1>
       </main>
     </>
   )
