@@ -1,13 +1,35 @@
 {
-  "accountAssociation": {
-    "header": "…",
-    "payload": "…",
-    "signature": "…"
-  },
   "frame": {
-    "version": "vNext",
-    "name": "Fitness Diary",
-    "iconUrl": "https://barcelona-guide-eight.vercel.app/og/preview.png",
-    "homeUrl": "https://barcelona-guide-eight.vercel.app/frame"
+    "name": "Barcelona Lover's Guide",
+    "version": "1",
+    "iconUrl": "https://barcelona-guide-eight.vercel.app/og/icon.png",
+    "homeUrl": "https://barcelona-guide-eight.vercel.app/frame",
+    "subtitle": "Rate Barcelona’s best places on-chain",
+    "description": "Discover Barcelona’s top sights, cafés and neighborhoods. Leave 1-5 stars ratings recorded on Base (L2). Works on web and mini app",
+    "primaryCategory": "social",
+    "webhookUrl": "https://barcelona-guide-eight.vercel.app/api/webhook",
+    "tags": [
+      "travel",
+      "barcelona",
+      "guide",
+      "rating"
+    ],
+    "tagline": "Your on-chain guide Barcelona",
+    "buttonTitle": "Open mini app",
+    "ogTitle": "Barcelona Rate places on-chain",
+    "ogDescription": "Explore the city and drop 1–5 stars ratings stored on Base",
+    "ogImageUrl": "https://barcelona-guide-eight.vercel.app/og/og-image.png",
+    "castShareUrl": "https://warpcast.com/~/compose?text=Try+Barcelona+Guide+Ratings",
+    "splashBackgroundColor": "#4F46E5",
+    "splashImageUrl": "https://barcelona-guide-eight.vercel.app/og/splash.png",
+    "imageUrl": "https://barcelona-guide-eight.vercel.app/og/preview.png",
+    "screenshotUrls": [
+      "https://barcelona-guide-eight.vercel.app/og/screen1.png"
+    ]
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjg2MzU1OSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGY0YjVGRDNGRDEyOWJCNDQ5NGQ4OTlhZWE5M2ZCNGIwMUI1OUUzRTkifQ",
+    "payload": "eyJkb21haW4iOiIifQ",
+    "signature": "EHiIL+9ORzuNHWqDsWzK3FVxwzMvnRUmbzVStWGAkEdRcRZuXnZ+Li4DeFSF08AXy2cOaOLnCtq8YAPT1rx4vBs="
   }
 }
