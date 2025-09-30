@@ -1,5 +1,5 @@
-// pages/web.tsx
 import Head from "next/head"
+import Image from "next/image"
 import { useEffect, useState } from "react"
 import { publicClient } from "../lib/viem"
 import ratingsAbi from "../abi/BarcelonaRatings.json"
@@ -82,7 +82,6 @@ export default function Web() {
     const rater = address as `0x${string}`
     const deadline = Math.floor(Date.now() / 1000) + 5 * 60
 
-    // получаем следующий nonce
     const nextNonce = await publicClient.readContract({
       abi: ratingsAbi,
       address: CONTRACT_ADDRESS,
@@ -90,7 +89,6 @@ export default function Web() {
       args: [rater, placeId],
     })
 
-    // EIP-712 данные
     const domain = {
       name: "BarcelonaRatings",
       version: "1",
@@ -110,20 +108,17 @@ export default function Web() {
 
     const message = { rater, placeId, rating, nonce: nextNonce, deadline }
 
-    // подпись typed data
     const signature = await window.ethereum.request({
       method: "eth_signTypedData_v4",
       params: [rater, JSON.stringify({ domain, types, primaryType: "Rating", message })],
     })
 
-    // формируем calldata
     const data = encodeFunctionData({
       abi: ratingsAbi,
       functionName: "submitRating",
       args: [rater, placeId, rating, deadline, signature],
     })
 
-    // отправляем транзакцию
     await window.ethereum.request({
       method: "eth_sendTransaction",
       params: [{ from: rater, to: CONTRACT_ADDRESS, data, value: "0x0" }],
@@ -172,33 +167,43 @@ export default function Web() {
 
         {loading && <p className="text-gray-500">Loading ratings…</p>}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {places.map((p) => (
             <div
               key={p.id}
-              className="border rounded-xl p-4 shadow-md bg-white hover:shadow-lg transition space-y-2"
+              className="border rounded-xl shadow-md bg-white hover:shadow-xl transition overflow-hidden flex flex-col"
             >
-              <h2 className="font-bold text-lg text-emerald-700">{p.title}</h2>
-              <p className="text-gray-700 text-sm">{p.short}</p>
-              <p className="text-gray-800">
-                {t.rating}:{" "}
-                <span className="font-semibold">
-                  {ratings[p.id] ? ratings[p.id].toFixed(2) : "—"}
-                </span>
-              </p>
-              {address && (
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => ratePlace(p.id, star)}
-                      className="px-2 py-1 border rounded hover:bg-emerald-50"
-                    >
-                      {star}⭐
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="relative w-full h-48">
+                <Image
+                  src={p.image}
+                  alt={p.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="p-4 flex flex-col gap-2 flex-grow">
+                <h2 className="font-bold text-lg text-emerald-700">{p.title}</h2>
+                <p className="text-gray-700 text-sm flex-grow">{p.short}</p>
+                <p className="text-gray-800">
+                  {t.rating}:{" "}
+                  <span className="font-semibold">
+                    {ratings[p.id] ? ratings[p.id].toFixed(2) : "—"}
+                  </span>
+                </p>
+                {address && (
+                  <div className="flex gap-2 mt-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => ratePlace(p.id, star)}
+                        className="px-2 py-1 border rounded hover:bg-emerald-50 text-sm"
+                      >
+                        {star}⭐
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
