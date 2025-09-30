@@ -58,7 +58,7 @@ function WarpcastReady() {
 function AppHead() {
   return (
     <Head>
-      <meta name="theme-color" content="#18c792" />
+      <meta name="theme-color" content="#004D98" /> {/* Barcelona blue */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link
@@ -66,6 +66,29 @@ function AppHead() {
         rel="stylesheet"
       />
     </Head>
+  )
+}
+
+// 💄 Глобальные стили (без правок tailwind)
+// применяем Inter к тексту и Montserrat к заголовкам
+function GlobalStyles() {
+  return (
+    <style jsx global>{`
+      :root {
+        --barca-blue: #004d98;
+        --barca-grana: #a50044;
+        --barca-gold: #fdb913;
+      }
+      body {
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+      }
+      h1, h2, h3, .font-display {
+        font-family: Montserrat, Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      }
+      /* лёгкий твик ссылок по умолчанию */
+      a { color: var(--barca-blue); }
+      a:hover { color: #003b7a; }
+    `}</style>
   )
 }
 
@@ -80,6 +103,7 @@ export default function App({ Component, pageProps }: AppProps) {
     return (
       <>
         <AppHead />
+        <GlobalStyles />
         <WarpcastReady />
         <Component {...pageProps} />
       </>
@@ -92,6 +116,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
           <AppHead />
+          <GlobalStyles />
           <Layout>
             <WarpcastReady />
             <Component {...pageProps} />
