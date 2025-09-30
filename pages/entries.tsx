@@ -1,119 +1,138 @@
+// pages/entries.tsx
 import { useEffect, useState } from "react"
 import { readContract } from "@wagmi/core"
 import { useAccount } from "wagmi"
-import { wagmiClientConfig } from "../lib/wagmi"   // ✅ правильный импорт
-import abi from "../abi/FitnessDiary.json"
+import { wagmiClientConfig } from "../lib/wagmi"   // ✅ оставляем как было
+import ratingsAbi from "../abi/BarcelonaRatings.json" // ✅ под наш контракт
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card"
 import { Button } from "../components/ui/button"
-import { ArrowUpCircle, ArrowDownCircle, Flame, Footprints } from "lucide-react"
+import { ArrowUpCircle, ArrowDownCircle } from "lucide-react" // ✅ используем для сравнения с средним
 import { ConnectButton } from "@rainbow-me/rainbowkit"
+import Image from "next/image"
+import { places } from "../data/places" // ✅ чтобы показать название/картинку места
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string}` // ✅ под наш проект
 
-type Entry = {
-  date: number
-  weightGrams: number
-  caloriesIn: number
-  caloriesOut: number
-  steps: number
-  exists: boolean
+type MyPlaceRating = {
+  placeId: number
+  my: number          // моя оценка 1..5
+  avg: number | null  // средний рейтинг (может быть null, если нет рейтингов)
 }
 
 export default function EntriesPage() {
   const { address, isConnected } = useAccount()
-  const [entries, setEntries] = useState<Entry[]>([])
+  const [entries, setEntries] = useState<MyPlaceRating[]>([])
   const [loading, setLoading] = useState(false)
-  const [count, setCount] = useState(5)
+  const [count, setCount] = useState(6) // сколько мест проверяем за раз
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-  const [filter, setFilter] = useState<"all" | "7d" | "30d">("all")
+  const [filter, setFilter] = useState<"all" | "4plus" | "5">("all") // ✅ фильтр по моей оценке
 
   useEffect(() => {
     if (!isConnected || !address) return
     fetchEntries()
-  }, [isConnected, address, count])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, address, count, sortOrder, filter])
 
-  async function safeGetDates(addr: `0x${string}`, count: bigint) {
-    while (count > 0n) {
+  // ✅ вспомогательно: берём первые N places (как раньше брали N дат)
+  async function safeGetPlaces(limit: number) {
+    return places.slice(0, Math.max(0, limit))
+  }
+
+  // читаем мою оценку; контракт мог назвать геттер по-разному — пробуем несколько
+  async function readMyRating(addr: `0x${string}`, placeId: number): Promise<number | null> {
+    const candidates = [
+      { fn: "getUserRating", args: [addr, BigInt(placeId)] },
+      { fn: "ratingOf", args: [addr, BigInt(placeId)] },
+      { fn: "userRating", args: [addr, BigInt(placeId)] },
+      { fn: "userRatings", args: [addr, BigInt(placeId)] }, // public mapping
+    ] as const
+
+    for (const c of candidates) {
       try {
-        return await readContract(wagmiClientConfig, {   // ✅ заменил config
-          abi,
+        const out = await readContract(wagmiClientConfig, {
+          abi: ratingsAbi as any,
           address: CONTRACT_ADDRESS,
-          functionName: "getDates",
-          args: [addr, 0n, count],
-        }) as bigint[]
-      } catch (err: any) {
-        if (err.message.includes("Out of bounds")) count -= 1n
-        else throw err
+          functionName: c.fn as any,
+          args: c.args as any,
+        })
+        // нормализуем (bigint | number | tuple)
+        if (typeof out === "bigint" || typeof out === "number") return Number(out)
+        if (Array.isArray(out) && out.length) return Number(out[0])
+        if (out && typeof out === "object" && "0" in (out as any)) return Number((out as any)["0"])
+      } catch {
+        // пробуем следующий вариант
       }
     }
-    return []
+    return null
+  }
+
+  // читаем средний рейтинг x100 -> делим на 100
+  async function readAverage(placeId: number): Promise<number | null> {
+    try {
+      const x100 = await readContract(wagmiClientConfig, {
+        abi: ratingsAbi as any,
+        address: CONTRACT_ADDRESS,
+        functionName: "getAverageX100",
+        args: [BigInt(placeId)],
+      })
+      const n = typeof x100 === "bigint" ? Number(x100) : Number(x100 || 0)
+      if (!isFinite(n)) return null
+      return n / 100
+    } catch {
+      return null
+    }
   }
 
   async function fetchEntries() {
     try {
       setLoading(true)
-      const datesBigInt = await safeGetDates(address as `0x${string}`, BigInt(count))
-      const dates = datesBigInt.map(d => Number(d))
+      const chunk = await safeGetPlaces(count)
 
-      const fetched: Entry[] = []
-      for (let d of dates) {
-        const entry = await readContract(wagmiClientConfig, {   // ✅ заменил config
-          abi,
-          address: CONTRACT_ADDRESS,
-          functionName: "getEntry",
-          args: [address, BigInt(d)],
-        }) as unknown as Entry
-
-        if (entry.exists) {
-          fetched.push({
-            ...entry,
-            date: Number(entry.date),
-            weightGrams: Number(entry.weightGrams),
-            caloriesIn: Number(entry.caloriesIn),
-            caloriesOut: Number(entry.caloriesOut),
-            steps: Number(entry.steps),
-          })
+      const res: MyPlaceRating[] = []
+      // последовательно, чтобы не зафлудить RPC
+      for (const p of chunk) {
+        const my = await readMyRating(address as `0x${string}`, p.id)
+        if (my && my > 0) {
+          const avg = await readAverage(p.id)
+          res.push({ placeId: p.id, my, avg })
         }
       }
-      setEntries(fetched)
+
+      // фильтр по моей оценке
+      const filtered = res.filter((r) => {
+        if (filter === "5") return r.my === 5
+        if (filter === "4plus") return r.my >= 4
+        return true
+      })
+
+      // сортировка по моей оценке (как раньше по дате)
+      const sorted = [...filtered].sort((a, b) =>
+        sortOrder === "asc" ? a.my - b.my : b.my - a.my
+      )
+
+      setEntries(sorted)
     } finally {
       setLoading(false)
     }
   }
 
-  function formatDate(num: number) {
-    const str = num.toString()
-    return `${str.slice(6, 8)}/${str.slice(4, 6)}/${str.slice(0, 4)}`
+  // «звёзды» для числа
+  function stars(n?: number | null) {
+    if (!n) return "—"
+    const full = Math.max(0, Math.min(5, Math.floor(n)))
+    const half = n - full >= 0.5
+    return "⭐".repeat(full) + (half ? "✰" : "")
   }
-
-  function filterEntries(list: Entry[]) {
-    const now = new Date()
-    return list.filter(e => {
-      if (filter === "7d") {
-        const d = new Date(`${e.date.toString().slice(0, 4)}-${e.date.toString().slice(4, 6)}-${e.date.toString().slice(6, 8)}`)
-        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 7
-      }
-      if (filter === "30d") {
-        const d = new Date(`${e.date.toString().slice(0, 4)}-${e.date.toString().slice(4, 6)}-${e.date.toString().slice(6, 8)}`)
-        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 30
-      }
-      return true
-    })
-  }
-
-  const sortedEntries = [...filterEntries(entries)].sort((a, b) =>
-    sortOrder === "asc" ? a.date - b.date : b.date - a.date
-  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex flex-col items-center p-6 space-y-6">
-      <h1 className="text-3xl font-bold text-emerald-700">Мои записи</h1>
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col items-center p-6 space-y-6">
+      <h1 className="text-3xl font-bold text-indigo-700 font-display">Мои оценки</h1>
 
       {!isConnected ? (
         <Card className="w-full max-w-md text-center p-6 shadow-md border border-gray-200">
           <CardHeader>
             <CardTitle className="text-lg text-gray-800">
-              Подключите кошелёк, чтобы просмотреть записи
+              Подключите кошелёк, чтобы просмотреть ваши оценки мест
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -131,71 +150,82 @@ export default function EntriesPage() {
               onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
               className="rounded border px-3 py-1 text-sm"
             >
-              <option value="desc">Новые сверху</option>
-              <option value="asc">Старые сверху</option>
+              <option value="desc">Высокие сверху</option>
+              <option value="asc">Низкие сверху</option>
             </select>
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as "all" | "7d" | "30d")}
+              onChange={(e) => setFilter(e.target.value as "all" | "4plus" | "5")}
               className="rounded border px-3 py-1 text-sm"
             >
               <option value="all">Все</option>
-              <option value="7d">Последние 7 дней</option>
-              <option value="30d">Последние 30 дней</option>
+              <option value="4plus">Только 4★ и выше</option>
+              <option value="5">Только 5★</option>
             </select>
           </div>
 
           {/* Карточка истории */}
-          <Card className="w-full max-w-2xl shadow-sm border border-gray-200">
+          <Card className="w-full max-w-3xl shadow-sm border border-gray-200">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold text-emerald-700">История</CardTitle>
+              <CardTitle className="text-xl font-semibold text-indigo-700">
+                Поставленные оценки
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {loading && <p className="text-gray-500">Загрузка...</p>}
-              {!loading && sortedEntries.length === 0 && <p className="text-gray-500">Записей пока нет</p>}
+              {!loading && entries.length === 0 && (
+                <p className="text-gray-500">Пока нет оценённых мест</p>
+              )}
 
-              <div className="space-y-4">
-                {sortedEntries.map((entry, i) => {
-                  const prev = sortedEntries[i + 1]
-                  const weightDiff = prev ? (entry.weightGrams - prev.weightGrams) / 1000 : 0
+              <div className="grid gap-4 sm:grid-cols-2">
+                {entries.map((r) => {
+                  const place = places.find((p) => p.id === r.placeId)
+                  if (!place) return null
+
+                  const diff = r.avg != null ? r.my - r.avg : 0
+                  const trend =
+                    r.avg == null
+                      ? null
+                      : diff > 0.25
+                        ? "up"
+                        : diff < -0.25
+                          ? "down"
+                          : "flat"
 
                   return (
                     <div
-                      key={i}
-                      className="border rounded-lg p-4 shadow-sm bg-white hover:shadow-md transition"
+                      key={r.placeId}
+                      className="border rounded-lg p-4 shadow-sm bg-white hover:shadow-md transition flex gap-3"
                     >
-                      <p className="text-sm text-gray-600">{formatDate(entry.date)}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-800">
-                          Вес: {(entry.weightGrams / 1000).toFixed(1)} кг
-                        </p>
-                        {weightDiff !== 0 &&
-                          (weightDiff > 0 ? (
-                            <ArrowUpCircle className="text-red-500 w-4 h-4" />
-                          ) : (
-                            <ArrowDownCircle className="text-green-500 w-4 h-4" />
-                          ))}
+                      <div className="relative h-20 w-28 flex-shrink-0 rounded overflow-hidden">
+                        <Image src={place.image} alt={place.title} fill className="object-cover" />
                       </div>
-                      <div className="flex gap-4 text-sm mt-1">
-                        <span className={`flex items-center gap-1 ${entry.caloriesIn > entry.caloriesOut ? "text-red-600" : "text-green-600"}`}>
-                          <Flame className="w-4 h-4" />
-                          {entry.caloriesIn}/{entry.caloriesOut}
-                        </span>
-                        <span className="flex items-center gap-1 text-blue-600">
-                          <Footprints className="w-4 h-4" />
-                          {entry.steps}
-                        </span>
+
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{place.title}</p>
+
+                        <div className="mt-1 text-sm text-gray-800 flex items-center gap-2">
+                          <span className="text-gray-500">Ваша:</span>
+                          <span className="font-medium">{stars(r.my)} ({r.my})</span>
+                          {trend === "up" && <ArrowUpCircle className="w-4 h-4 text-green-600" />}
+                          {trend === "down" && <ArrowDownCircle className="w-4 h-4 text-red-600" />}
+                        </div>
+
+                        <div className="text-sm text-gray-600">
+                          Средняя: {r.avg != null ? `${stars(r.avg)} (${r.avg.toFixed(2)})` : "—"}
+                        </div>
                       </div>
                     </div>
                   )
                 })}
               </div>
 
-              {entries.length >= count && (
+              {/* Пагинация: проверяем ещё места */}
+              {places.length > count && (
                 <div className="flex justify-center mt-4">
                   <Button
-                    onClick={() => setCount(count + 5)}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                    onClick={() => setCount(count + 6)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
                     Показать ещё
                   </Button>
