@@ -1,7 +1,6 @@
-// pages/web.tsx
 import Head from "next/head"
 import Image from "next/image"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/router"
 import { publicClient } from "../lib/viem"
 import ratingsAbi from "../abi/BarcelonaRatings.json"
@@ -10,19 +9,22 @@ import { encodeFunctionData } from "viem"
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string}`
 
-// 🔤 Переводы
 const translations = {
   ru: {
     connect: "🔑 Подключить кошелек",
     connected: "✅ Кошелек подключен",
-    rate: "⭐ Поставить оценку",
     rating: "Средний рейтинг",
+    search: "Поиск по названию...",
+    byName: "По названию",
+    byRating: "По рейтингу",
   },
   en: {
     connect: "🔑 Connect Wallet",
     connected: "✅ Wallet Connected",
-    rate: "⭐ Rate this place",
     rating: "Average rating",
+    search: "Search by name...",
+    byName: "By name",
+    byRating: "By rating",
   },
 }
 
@@ -35,23 +37,21 @@ export default function Web() {
   const [ratings, setRatings] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(false)
 
-  // подключение кошелька
+  // поиск/сортировка (оставим базово)
+  const [search, setSearch] = useState("")
+  const [sort, setSort] = useState<"name" | "rating">("name")
+
   async function connectWallet() {
     if (typeof window.ethereum !== "undefined") {
       try {
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        })
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
         setAddress(accounts[0])
-      } catch (err) {
-        console.error("Wallet connect error:", err)
-      }
+      } catch (err) { console.error(err) }
     } else {
       alert("Install MetaMask or use WalletConnect")
     }
   }
 
-  // чтение среднего рейтинга
   async function fetchAverage(placeId: number) {
     try {
       const avgX100 = await publicClient.readContract({
@@ -76,12 +76,8 @@ export default function Web() {
     setLoading(false)
   }
 
-  // отправка оценки
   async function ratePlace(placeId: number, rating: number) {
-    if (!address) {
-      alert(lang === "ru" ? "Сначала подключите кошелёк" : "Connect wallet first")
-      return
-    }
+    if (!address) { alert(lang === "ru" ? "Сначала подключите кошелёк" : "Connect wallet first"); return }
     const rater = address as `0x${string}`
     const deadline = Math.floor(Date.now() / 1000) + 5 * 60
 
@@ -92,13 +88,7 @@ export default function Web() {
       args: [rater, placeId],
     })
 
-    const domain = {
-      name: "BarcelonaRatings",
-      version: "1",
-      chainId: 8453,
-      verifyingContract: CONTRACT_ADDRESS,
-    }
-
+    const domain = { name: "BarcelonaRatings", version: "1", chainId: 8453, verifyingContract: CONTRACT_ADDRESS }
     const types = {
       Rating: [
         { name: "rater", type: "address" },
@@ -108,14 +98,7 @@ export default function Web() {
         { name: "deadline", type: "uint256" },
       ],
     }
-
-    const message = {
-      rater,
-      placeId,
-      rating,
-      nonce: Number(nextNonce), // фикс BigInt -> Number
-      deadline,
-    }
+    const message = { rater, placeId, rating, nonce: Number(nextNonce), deadline }
 
     const signature = await window.ethereum.request({
       method: "eth_signTypedData_v4",
@@ -136,81 +119,91 @@ export default function Web() {
     loadRatings()
   }
 
-  useEffect(() => {
-    loadRatings()
-  }, [])
+  useEffect(() => { loadRatings() }, [])
 
-  // 👉 кликабельность карточки
   const goToPlace = (id: number) => router.push(`/place/${id}`)
+
+  const filtered = useMemo(() => {
+    let list = places.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
+    if (sort === "name") list = list.sort((a, b) => a.title.localeCompare(b.title))
+    if (sort === "rating") list = list.sort((a, b) => (ratings[b.id] || 0) - (ratings[a.id] || 0))
+    return list
+  }, [search, sort, ratings])
+
+  const renderStars = (value?: number) => {
+    if (!value) return "—"
+    const full = Math.floor(value)
+    const half = value - full >= 0.5
+    return "⭐".repeat(full) + (half ? "✰" : "") + ` (${value.toFixed(1)})`
+  }
 
   return (
     <>
-      <Head>
-        <title>Barcelona Guide — Web</title>
-      </Head>
+      <Head><title>Barcelona Guide — Web</title></Head>
 
-      <main className="min-h-screen p-6 space-y-6 bg-gradient-to-b from-gray-50 to-gray-100">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-extrabold text-emerald-700 text-center">
-            Barcelona Guide — Web
+      <main className="min-h-screen p-6 space-y-8">
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl md:text-4xl font-display font-extrabold text-brand-700">
+            Barcelona Guide
           </h1>
-          <div className="flex gap-2">
-            {!address && (
-              <button
-                onClick={connectWallet}
-                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
-              >
-                {t.connect}
-              </button>
-            )}
-            {address && (
-              <span className="text-emerald-700 font-semibold">
-                {t.connected}
-              </span>
+          <div className="flex items-center gap-2">
+            {!address ? (
+              <button onClick={connectWallet} className="btn-brand">{t.connect}</button>
+            ) : (
+              <span className="px-3 py-1 rounded bg-brand-100 text-brand-700 font-medium">{t.connected}</span>
             )}
             <button
               onClick={() => setLang(lang === "ru" ? "en" : "ru")}
-              className="px-3 py-1 rounded border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+              className="btn-outline-brand"
             >
               {lang === "ru" ? "EN" : "RU"}
             </button>
           </div>
         </div>
 
-        {loading && <p className="text-gray-500">Loading ratings…</p>}
+        {/* Controls */}
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.search}
+            className="border border-brand-200 focus:ring-2 focus:ring-brand-300 focus:outline-none p-2 rounded w-64 text-gray-700"
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as any)}
+            className="border border-brand-200 focus:ring-2 focus:ring-brand-300 focus:outline-none p-2 rounded text-gray-700"
+          >
+            <option value="name">{t.byName}</option>
+            <option value="rating">{t.byRating}</option>
+          </select>
+          {loading && <span className="text-sm text-gray-500">Обновляем рейтинги…</span>}
+        </div>
 
+        {/* Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {places.map((p) => (
+          {filtered.map((p) => (
             <div
               key={p.id}
               role="button"
               tabIndex={0}
               onClick={() => goToPlace(p.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") goToPlace(p.id)
-              }}
-              className="border rounded-xl shadow-md bg-white hover:shadow-xl transition overflow-hidden flex flex-col cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && goToPlace(p.id)}
+              className="card overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-300"
             >
               <div className="relative w-full h-48">
-                <Image
-                  src={p.image}
-                  alt={p.title}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
+                <Image src={p.image} alt={p.title} fill className="object-cover" />
               </div>
-              <div className="p-4 flex flex-col gap-2 flex-grow">
-                <h2 className="font-bold text-lg text-emerald-700">{p.title}</h2>
-                <p className="text-gray-700 text-sm flex-grow">{p.short}</p>
+              <div className="p-4 flex flex-col gap-2">
+                <h2 className="font-display font-semibold text-lg text-brand-700">{p.title}</h2>
+                <p className="text-gray-700 text-sm">{p.short}</p>
                 <p className="text-gray-800">
-                  {t.rating}:{" "}
-                  <span className="font-semibold">
-                    {ratings[p.id] ? ratings[p.id].toFixed(2) : "—"}
-                  </span>
+                  <span className="text-gray-500 mr-1">⭐</span>
+                  {renderStars(ratings[p.id])}
                 </p>
                 {address && (
-                  // ВАЖНО: не пускаем клик выше, чтобы нажатие на ⭐ не открывало страницу
                   <div
                     className="flex gap-2 mt-2"
                     onClick={(e) => e.stopPropagation()}
@@ -220,7 +213,7 @@ export default function Web() {
                       <button
                         key={star}
                         onClick={() => ratePlace(p.id, star)}
-                        className="px-2 py-1 border rounded hover:bg-emerald-50 text-sm"
+                        className="btn-outline-brand text-sm"
                       >
                         {star}⭐
                       </button>
