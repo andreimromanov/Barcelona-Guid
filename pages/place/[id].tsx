@@ -159,7 +159,7 @@ export default function PlacePage() {
             <h1 className="text-3xl font-bold text-emerald-700">
               {place.title}
             </h1>
-            <p className="text-gray-700">{place.short}</p>
+            <p className="text-gray-700 whitespace-pre-line">{place.long ?? place.short}</p>
 
             {loading ? (
               <p className="text-gray-500">Loading rating…</p>
