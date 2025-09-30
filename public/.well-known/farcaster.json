@@ -4,8 +4,8 @@
     "tags": ["travel", "barcelona", "ratings", "base"]
   },
   "accountAssociation": {
-    "header": "eyJmaWQiOjg2MzU1OSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGY0YjVGRDNGRDEyOWJCNDQ5NGQ4OTlhZWE5M2ZCNGIwMUI1OUUzRTkifQ",      
-    "payload": "eyJkb21haW4iOiJiYXJjZWxvbmEtZ3VpZGUtZWlnaHQudmVyY2VsLmFwcCJ9",     
-    "signature": "1PZTcnZSuOaz1p9myufephwGU477SJIBJWX8IGicW"    
+    "header": "",      
+    "payload": "",     
+    "signature": ""    
   }
 }
