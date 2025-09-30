@@ -20,23 +20,6 @@ type MyPlaceRating = {
   avg: number | null  // средний рейтинг
 }
 
-declare global {
-  interface Window {
-    farcaster?: {
-      actions?: { ready: () => void }
-      wallet?: {
-        getAccounts?: () => Promise<string[]>
-        sendTransaction?: (tx: {
-          to: `0x${string}`
-          data?: `0x${string}`
-          value?: `0x${string}`
-        }) => Promise<`0x${string}`>
-        signTypedData?: (typedData: unknown) => Promise<`0x${string}`>
-      }
-    }
-  }
-}
-
 export default function EntriesPage() {
   const router = useRouter()
   const isMiniApp = router.pathname.startsWith("/frame")
@@ -84,7 +67,7 @@ export default function EntriesPage() {
   async function readMyRating(addr: `0x${string}`, placeId: number): Promise<number | null> {
     const candidates = [
       { fn: "getUserRating", args: [addr, BigInt(placeId)] },
-      // оставим фолбэки на случай отличий ABI
+      // фолбэки на случай отличий ABI
       { fn: "ratingOf", args: [addr, BigInt(placeId)] },
       { fn: "userRatings", args: [addr, BigInt(placeId)] },
     ] as const
@@ -116,7 +99,7 @@ export default function EntriesPage() {
         args: [BigInt(placeId)],
       })
       const n = typeof x100 === "bigint" ? Number(x100) : Number(x100 || 0)
-      return isFinite(n) ? n / 100 : null
+      return Number.isFinite(n) ? n / 100 : null
     } catch {
       return null
     }
