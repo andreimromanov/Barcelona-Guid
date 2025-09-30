@@ -8,7 +8,9 @@ import "../styles/globals.css"
 import type { AppProps } from "next/app"
 import { useEffect } from "react"
 import { useRouter } from "next/router"
-// ⚠️ у тебя Layout лежит в components/ui/Layout.tsx
+import Head from "next/head"
+
+// ⚠️ если у тебя реально Layout в другом месте — не трогаем, раз работает
 import Layout from "../components/Layout"
 
 declare global {
@@ -52,6 +54,21 @@ function WarpcastReady() {
   return null
 }
 
+// 🔤 Head с шрифтами и базовым цветом темы
+function AppHead() {
+  return (
+    <Head>
+      <meta name="theme-color" content="#18c792" />
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </Head>
+  )
+}
+
 const queryClient = new QueryClient()
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -59,20 +76,22 @@ export default function App({ Component, pageProps }: AppProps) {
   const isMiniApp = router.pathname.startsWith("/frame")
 
   if (isMiniApp) {
-    // 🚫 Мини-дапы работают ТОЛЬКО с farcaster.sdk, без Wagmi/RainbowKit
+    // 🚫 Мини-дапы: без Wagmi/RainbowKit (как и было)
     return (
       <>
+        <AppHead />
         <WarpcastReady />
         <Component {...pageProps} />
       </>
     )
   }
 
-  // 🌍 Полная версия сайта с Metamask/WalletConnect
+  // 🌍 Полная версия сайта: Wagmi + RainbowKit (как и было)
   return (
     <WagmiProvider config={wagmiClientConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
+          <AppHead />
           <Layout>
             <WarpcastReady />
             <Component {...pageProps} />
