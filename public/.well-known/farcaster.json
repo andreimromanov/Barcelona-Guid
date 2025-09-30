@@ -1,22 +1,33 @@
 {
   "frame": {
     "name": "Barcelona Guide",
-    "subtitle": "Rate Barcelona places on Base",
-    "homeUrl": "https://barcelona-guide-eight.vercel.app/frame",
-    "castShareUrl": "https://warpcast.com/~/compose?text=Rate%20Barcelona%20places%20in%20our%20mini%20app&embeds[]=https://barcelona-guide-eight.vercel.app/frame",
-    "category": "Travel",
+    "version": "1",
     "iconUrl": "https://barcelona-guide-eight.vercel.app/icon.png",
-    "previewUrl": "https://barcelona-guide-eight.vercel.app/preview.png",
-    "heroImageUrl": "https://barcelona-guide-eight.vercel.app/hero.png",
+    "homeUrl": "https://barcelona-guide-eight.vercel.app",
+    "subtitle": "Rate Barcelona’s best places onchain",
+    "description": "Discover Barcelona’s top sights, cafés and neighborhoods. Leave 1-5 stars ratings recorded on Base (L2). Works on web and mini app",
+    "primaryCategory": "social",
+    "screenshotUrls": [
+      "https://barcelona-guide-eight.vercel.app/screen1.png"
+    ],
+    "imageUrl": "https://barcelona-guide-eight.vercel.app/preview.png",
     "splashImageUrl": "https://barcelona-guide-eight.vercel.app/splash.png",
     "splashBackgroundColor": "#4052B6",
-    "screenshotUrls": [
-      "https://barcelona-guide-eight.vercel.app/screenshot1.png"
-    ]
+    "tags": [
+      "travel",
+      "barcelona",
+      "guide"
+    ],
+    "tagline": "Your on-chain guide Barcelona",
+    "buttonTitle": "Open Barcelona Guide",
+    "ogTitle": "Barcelona Rate places on-chain",
+    "ogDescription": "Explore the city and drop 1–5 stars ratings stored on Base",
+    "ogImageUrl": "https://barcelona-guide-eight.vercel.app/og-image.png",
+    "castShareUrl": "https://barcelona-guide-eight.vercel.app/frame"
   },
   "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
+    "header": "eyJmaWQiOjg2MzU1OSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGY0YjVGRDNGRDEyOWJCNDQ5NGQ4OTlhZWE5M2ZCNGIwMUI1OUUzRTkifQ",
+    "payload": "eyJkb21haW4iOiIifQ",
+    "signature": "EHiIL+9ORzuNHWqDsWzK3FVxwzMvnRUmbzVStWGAkEdRcRZuXnZ+Li4DeFSF08AXy2cOaOLnCtq8YAPT1rx4vBs="
   }
 }
