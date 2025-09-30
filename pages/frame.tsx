@@ -30,7 +30,8 @@ export default function Frame() {
   const [lang, setLang] = useState<"ru" | "en">("ru")
   const t = translations[lang]
 
-  const [address, setAddress] = useState<string | null>(null)
+  // ✅ адрес теперь строго типизирован
+  const [address, setAddress] = useState<`0x${string}` | null>(null)
   const [avgMap, setAvgMap] = useState<Record<number, number>>({})
   const [loadingAvg, setLoadingAvg] = useState(false)
   const [sendingId, setSendingId] = useState<number | null>(null)
@@ -42,17 +43,24 @@ export default function Frame() {
     sdk.actions.ready().catch(() => {})
     ;(async () => {
       try {
-        // сначала пробуем eth_accounts у miniapp provider
         if (provider?.request) {
           const accs = await provider.request({ method: "eth_accounts" })
-          setAddress(accs && accs[0] ? accs[0] : null)
-          return
+          const a = accs && accs[0]
+          if (a && typeof a === "string" && a.startsWith("0x")) {
+            setAddress(a as `0x${string}`)
+            return
+          }
         }
       } catch {}
-      // фолбэк на window.farcaster (если sdk недоступен)
+      // фолбэк на window.farcaster при необходимости
       try {
         const accs = await (window as any)?.farcaster?.wallet?.getAccounts?.()
-        setAddress(accs && accs[0] ? accs[0] : null)
+        const a = accs && accs[0]
+        if (a && typeof a === "string" && a.startsWith("0x")) {
+          setAddress(a as `0x${string}`)
+        } else {
+          setAddress(null)
+        }
       } catch {
         setAddress(null)
       }
@@ -188,7 +196,6 @@ export default function Frame() {
                     </button>
                   ))}
 
-                  {/* Явная кнопка перехода */}
                   <Link
                     href={`/frame/${p.id}`}
                     className="px-2 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
