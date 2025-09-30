@@ -35,10 +35,17 @@ export default function FramePlace() {
   const [lang, setLang] = useState<"ru" | "en">("ru")
   const t = translations[lang]
 
-  const placeId = useMemo(() => (idParam ? Number(idParam) : null), [idParam])
+  const placeId = useMemo(() => {
+    if (!idParam) return null
+    const s = Array.isArray(idParam) ? idParam[0] : idParam
+    const n = Number(s)
+    return Number.isFinite(n) ? n : null
+  }, [idParam])
+
   const place = useMemo(() => places.find((p) => p.id === placeId), [placeId])
 
-  const [address, setAddress] = useState<string | null>(null)
+  // ✅ адрес строго типизирован под viem (0x-prefixed)
+  const [address, setAddress] = useState<`0x${string}` | null>(null)
   const [avg, setAvg] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
 
@@ -51,14 +58,22 @@ export default function FramePlace() {
       try {
         if (provider?.request) {
           const accs = await provider.request({ method: "eth_accounts" })
-          setAddress(accs && accs[0] ? accs[0] : null)
-          return
+          const a = accs && accs[0]
+          if (a && typeof a === "string" && a.startsWith("0x")) {
+            setAddress(a as `0x${string}`)
+            return
+          }
         }
       } catch {}
       // фолбэк на window.farcaster при необходимости
       try {
         const accs = await (window as any)?.farcaster?.wallet?.getAccounts?.()
-        setAddress(accs && accs[0] ? accs[0] : null)
+        const a = accs && accs[0]
+        if (a && typeof a === "string" && a.startsWith("0x")) {
+          setAddress(a as `0x${string}`)
+        } else {
+          setAddress(null)
+        }
       } catch {
         setAddress(null)
       }
@@ -168,7 +183,7 @@ export default function FramePlace() {
             </p>
 
             <div className="flex gap-2">
-              {[1,2,3,4,5].map((s) => (
+              {[1, 2, 3, 4, 5].map((s) => (
                 <button
                   key={s}
                   disabled={sending}
