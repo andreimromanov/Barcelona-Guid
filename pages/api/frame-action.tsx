@@ -2,97 +2,60 @@
 /* eslint-disable react/jsx-key */
 import React from "react"
 import { createFrames, Button } from "frames.js/next"
+import { places } from "../../data/places"
+
+const APP_HOME = "https://barcelona-guide-eight.vercel.app/frame"
 
 const frames = createFrames({
   basePath: "/api/frame-action",
 })
 
-const handler = async (ctx: any) => {
+export default frames(async (ctx: any) => {
   const action = ctx.searchParams?.action ?? ""
+  const placeId = Number(ctx.searchParams?.placeId ?? 0)
 
-  if (action === "entries") {
-    return {
-      image: (
-        <div style={{ fontSize: 28, color: "black", padding: 40 }}>
-          Последние записи:
-          <br />• 80.0 кг — 2500/3000 кал, 12000 шагов
-          <br />• 79.5 кг — 2400/3100 кал, 11000 шагов
-        </div>
-      ),
-      buttons: [
-        <Button action="post" target="/api/frame-action">🔙 Назад</Button>,
-      ],
-    }
-  }
-
-  if (action === "log") {
-    return {
-      image: (
-        <div style={{ fontSize: 28, color: "blue", padding: 40 }}>
-          Введите данные через запятую:
-          <br />
-          📅 YYYYMMDD, ⚖️ Вес (кг), 🔥 Калории In, 💪 Калории Out, 🚶 Шаги
-        </div>
-      ),
-      textInput: "20250929,79.3,2500,3000,12000",
-      buttons: [
-        <Button action="post" target="/api/frame-action?action=save">✅ Сохранить</Button>,
-      ],
-    }
-  }
-
-  if (action === "save") {
-    const input = ctx.message?.inputText || ""
-    const parts = input.split(",").map((p: string) => p.trim())
-
-    if (parts.length < 5) {
+  if (action === "place" && Number.isFinite(placeId)) {
+    const p = places.find(pl => pl.id === placeId)
+    if (!p) {
       return {
-        image: (
-          <div style={{ fontSize: 28, color: "red", padding: 40 }}>
-            ❌ Недостаточно данных
-          </div>
-        ),
-        buttons: [
-          <Button action="post" target="/api/frame-action">🔙 Назад</Button>,
-        ],
+        image: <div style={{ fontSize: 28, padding: 40 }}>❌ Place not found</div>,
+        buttons: [<Button action="post" target="/api/frame-action">⬅ Back</Button>],
       }
     }
-
-    const [dateStr, weightStr, calInStr, calOutStr, stepsStr] = parts
-    const url = `https://fitness-diary-web.vercel.app/frame?date=${dateStr}&weight=${weightStr}&calIn=${calInStr}&calOut=${calOutStr}&steps=${stepsStr}`
-
     return {
       image: (
-        <div style={{ fontSize: 28, color: "green", padding: 40 }}>
-          ✅ Данные получены!
-          <br />
-          Вес: {weightStr} кг
-          <br />
-          Калории: {calInStr}/{calOutStr}
-          <br />
-          Шаги: {stepsStr}
-          <br />
-          Теперь подпишите транзакцию
+        <div style={{ fontSize: 28, padding: 40 }}>
+          <div style={{ fontWeight: 700 }}>{p.title}</div>
+          <div style={{ marginTop: 8 }}>{p.short}</div>
+          <div style={{ marginTop: 16 }}>⭐ Открой мини-доп, чтобы поставить оценку</div>
         </div>
       ),
       buttons: [
-        <Button action="link" target={url}>🔗 Подписать во встроенном кошельке</Button>,
+        <Button action="link" target={`${APP_HOME}/${p.id}`}>🔗 Open mini app</Button>,
+        <Button action="post" target="/api/frame-action">⬅ Back</Button>,
       ],
     }
   }
 
-  // fallback
+  // Главный кадр: подборка мест и кнопка в мини-доп
+  const top3 = places.slice(0, 3)
   return {
     image: (
-      <div style={{ fontSize: 28, color: "black", padding: 40 }}>
-        👋 Добро пожаловать в Fitness Diary
+      <div style={{ fontSize: 28, padding: 40 }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>Barcelona Guide</div>
+        {top3.map((p) => (
+          <div key={p.id}>• {p.title}</div>
+        ))}
+        <div style={{ marginTop: 16 }}>Открой мини-доп, чтобы голосовать ⭐</div>
       </div>
     ),
     buttons: [
-      <Button action="post" target="/api/frame-action?action=entries">📖 Мои записи</Button>,
-      <Button action="post" target="/api/frame-action?action=log">➕ Добавить</Button>,
+      ...top3.map((p) => (
+        <Button action="post" target={`/api/frame-action?action=place&placeId=${p.id}`}>
+          {p.title}
+        </Button>
+      )),
+      <Button action="link" target={APP_HOME}>🟢 Open mini app</Button>,
     ],
   }
-}
-
-export default frames(handler)
+})
