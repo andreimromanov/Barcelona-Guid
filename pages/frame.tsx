@@ -1,3 +1,4 @@
+// pages/frame.tsx
 import Head from "next/head"
 import Image from "next/image"
 import Link from "next/link"
@@ -16,12 +17,14 @@ const translations = {
     walletNotConnected: "Farcaster wallet не подключён",
     avg: "Средний рейтинг",
     open: "Открыть",
+    myRatings: "Мои оценки", // ✅ добавлено
   },
   en: {
     title: "Barcelona Guide — Mini",
     walletNotConnected: "Farcaster wallet not connected",
     avg: "Average rating",
     open: "Open",
+    myRatings: "My ratings", // ✅ добавлено
   },
 }
 
@@ -145,12 +148,21 @@ export default function Frame() {
         {/* Шапка */}
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-indigo-700">{t.title}</h1>
-          <button
-            onClick={() => setLang(lang === "ru" ? "en" : "ru")}
-            className="px-3 py-1 text-sm border rounded hover:bg-indigo-50"
-          >
-            {lang === "ru" ? "EN" : "RU"}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* ✅ кнопка перехода в раздел оценок мини-аппа */}
+            <Link
+              href="/frame/entries"
+              className="px-3 py-1 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              {t.myRatings}
+            </Link>
+            <button
+              onClick={() => setLang(lang === "ru" ? "en" : "ru")}
+              className="px-3 py-1 text-sm border rounded hover:bg-indigo-50"
+            >
+              {lang === "ru" ? "EN" : "RU"}
+            </button>
+          </div>
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
