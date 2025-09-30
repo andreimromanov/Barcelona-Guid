@@ -1,6 +1,6 @@
 import Head from "next/head"
 import Image from "next/image"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { publicClient } from "../lib/viem"
 import ratingsAbi from "../abi/BarcelonaRatings.json"
 import { places } from "../data/places"
@@ -15,12 +15,20 @@ const translations = {
     connected: "✅ Кошелек подключен",
     rate: "⭐ Поставить оценку",
     rating: "Средний рейтинг",
+    search: "Поиск...",
+    sort: "Сортировать",
+    byName: "По названию",
+    byRating: "По рейтингу",
   },
   en: {
     connect: "🔑 Connect Wallet",
     connected: "✅ Wallet Connected",
     rate: "⭐ Rate this place",
     rating: "Average rating",
+    search: "Search...",
+    sort: "Sort",
+    byName: "By name",
+    byRating: "By rating",
   },
 }
 
@@ -31,6 +39,10 @@ export default function Web() {
   const [address, setAddress] = useState<string | null>(null)
   const [ratings, setRatings] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(false)
+
+  // поиск + сортировка
+  const [search, setSearch] = useState("")
+  const [sort, setSort] = useState<"name" | "rating">("name")
 
   // подключение кошелька
   async function connectWallet() {
@@ -106,12 +118,11 @@ export default function Web() {
       ],
     }
 
-    // 🔑 фикс: приводим BigInt → Number
     const message = {
       rater,
       placeId,
       rating,
-      nonce: Number(nextNonce),
+      nonce: Number(nextNonce), // 🔧 фикс BigInt
       deadline,
     }
 
@@ -138,6 +149,29 @@ export default function Web() {
     loadRatings()
   }, [])
 
+  // ⭐ функция для отображения звёздочек
+  function renderStars(value: number) {
+    const full = Math.floor(value)
+    const half = value - full >= 0.5
+    const stars = []
+    for (let i = 0; i < full; i++) stars.push("⭐")
+    if (half) stars.push("✰")
+    return stars.join("")
+  }
+
+  // фильтр и сортировка
+  const filteredPlaces = useMemo(() => {
+    let list = places.filter((p) =>
+      p.title.toLowerCase().includes(search.toLowerCase())
+    )
+    if (sort === "name") {
+      list = list.sort((a, b) => a.title.localeCompare(b.title))
+    } else if (sort === "rating") {
+      list = list.sort((a, b) => (ratings[b.id] || 0) - (ratings[a.id] || 0))
+    }
+    return list
+  }, [search, sort, ratings])
+
   return (
     <>
       <Head>
@@ -145,8 +179,9 @@ export default function Web() {
       </Head>
 
       <main className="min-h-screen p-6 space-y-6 bg-gradient-to-b from-gray-50 to-gray-100">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-extrabold text-emerald-700 text-center">
+        {/* Header */}
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h1 className="text-3xl font-extrabold text-emerald-700">
             Barcelona Guide — Web
           </h1>
           <div className="flex gap-2">
@@ -172,10 +207,30 @@ export default function Web() {
           </div>
         </div>
 
+        {/* Поиск + сортировка */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.search}
+            className="border p-2 rounded w-64 text-gray-700"
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as any)}
+            className="border p-2 rounded text-gray-700"
+          >
+            <option value="name">{t.byName}</option>
+            <option value="rating">{t.byRating}</option>
+          </select>
+        </div>
+
         {loading && <p className="text-gray-500">Loading ratings…</p>}
 
+        {/* Сетка мест */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {places.map((p) => (
+          {filteredPlaces.map((p) => (
             <div
               key={p.id}
               className="border rounded-xl shadow-md bg-white hover:shadow-xl transition overflow-hidden flex flex-col"
@@ -194,7 +249,9 @@ export default function Web() {
                 <p className="text-gray-800">
                   {t.rating}:{" "}
                   <span className="font-semibold">
-                    {ratings[p.id] ? ratings[p.id].toFixed(2) : "—"}
+                    {ratings[p.id]
+                      ? `${renderStars(ratings[p.id])} (${ratings[p.id].toFixed(1)})`
+                      : "—"}
                   </span>
                 </p>
                 {address && (
