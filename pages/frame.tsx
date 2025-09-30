@@ -1,7 +1,8 @@
 // pages/frame.tsx
 import Head from "next/head"
 import Image from "next/image"
-import { useEffect, useState, useMemo } from "react"
+import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
 import { encodeFunctionData } from "viem"
 import { sdk } from "@farcaster/miniapp-sdk"
 import ratingsAbi from "../abi/BarcelonaRatings.json"
@@ -10,21 +11,18 @@ import { places } from "../data/places"
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string}`
 
-// 🔤 Переводы (минимально нужное)
 const translations = {
   ru: {
     title: "Barcelona Guide — Mini",
     walletNotConnected: "Farcaster wallet не подключён",
     avg: "Средний рейтинг",
-    rate: "Поставить оценку",
-    back: "Назад",
+    open: "Открыть",
   },
   en: {
     title: "Barcelona Guide — Mini",
     walletNotConnected: "Farcaster wallet not connected",
     avg: "Average rating",
-    rate: "Rate",
-    back: "Back",
+    open: "Open",
   },
 }
 
@@ -32,26 +30,28 @@ export default function Frame() {
   const [lang, setLang] = useState<"ru" | "en">("ru")
   const t = translations[lang]
 
-  // адрес из Farcaster-кошелька
   const [address, setAddress] = useState<string | null>(null)
-
-  // средние рейтинги по местам
   const [avgMap, setAvgMap] = useState<Record<number, number>>({})
   const [loadingAvg, setLoadingAvg] = useState(false)
-
-  // состояние отправки транзакции
   const [sendingId, setSendingId] = useState<number | null>(null)
 
-  // провайдер Farcaster mini-app
   const provider = sdk.wallet.ethProvider
 
-  // handshake для Warpcast splash + получаем аккаунт
+  // Warpcast handshake + получить аккаунт
   useEffect(() => {
     sdk.actions.ready().catch(() => {})
     ;(async () => {
       try {
-        if (!provider?.request) return
-        const accs = await provider.request({ method: "eth_accounts" })
+        // сначала пробуем eth_accounts у miniapp provider
+        if (provider?.request) {
+          const accs = await provider.request({ method: "eth_accounts" })
+          setAddress(accs && accs[0] ? accs[0] : null)
+          return
+        }
+      } catch {}
+      // фолбэк на window.farcaster (если sdk недоступен)
+      try {
+        const accs = await (window as any)?.farcaster?.wallet?.getAccounts?.()
         setAddress(accs && accs[0] ? accs[0] : null)
       } catch {
         setAddress(null)
@@ -59,7 +59,7 @@ export default function Frame() {
     })()
   }, [provider])
 
-  // загрузка средних рейтингов
+  // загрузить средние рейтинги
   useEffect(() => {
     ;(async () => {
       setLoadingAvg(true)
@@ -82,7 +82,6 @@ export default function Frame() {
     })()
   }, [])
 
-  // «звёзды»
   const renderStars = (v?: number) => {
     if (!v) return "—"
     const full = Math.floor(v)
@@ -90,17 +89,11 @@ export default function Frame() {
     return "⭐".repeat(full) + (half ? "✰" : "") + ` (${v.toFixed(1)})`
   }
 
-  // отправка оценки как обычной on-chain транзакции
   async function ratePlace(placeId: number, rating: number) {
-    if (!provider?.request) {
-      alert(lang === "ru" ? "Кошелёк Farcaster недоступен" : "Farcaster wallet unavailable")
-      return
-    }
     if (!address) {
       alert(t.walletNotConnected)
       return
     }
-
     const data = encodeFunctionData({
       abi: ratingsAbi,
       functionName: "ratePlace",
@@ -109,12 +102,12 @@ export default function Frame() {
 
     setSendingId(placeId)
     try {
+      if (!provider?.request) throw new Error("Miniapp provider unavailable")
       await provider.request({
         method: "eth_sendTransaction",
         params: [{ from: address, to: CONTRACT_ADDRESS, data, value: "0x0" }],
       })
-
-      // перечитать средний по этому месту
+      // после отправки перечитаем средний рейтинг только для этого места
       try {
         const x100 = await publicClient.readContract({
           abi: ratingsAbi,
@@ -132,11 +125,8 @@ export default function Frame() {
     }
   }
 
-  // небольшая фильтрация/сортировка (по алфавиту)
-  const list = useMemo(
-    () => [...places].sort((a, b) => a.title.localeCompare(b.title)),
-    []
-  )
+  // алфавитный список
+  const list = useMemo(() => [...places].sort((a, b) => a.title.localeCompare(b.title)), [])
 
   return (
     <>
@@ -145,27 +135,29 @@ export default function Frame() {
       </Head>
 
       <main className="min-h-screen p-4 bg-white">
-        {/* шапка */}
+        {/* Шапка */}
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-indigo-700">{t.title}</h1>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setLang(lang === "ru" ? "en" : "ru")}
-              className="px-3 py-1 text-sm border rounded hover:bg-indigo-50"
-            >
-              {lang === "ru" ? "EN" : "RU"}
-            </button>
-          </div>
+          <button
+            onClick={() => setLang(lang === "ru" ? "en" : "ru")}
+            className="px-3 py-1 text-sm border rounded hover:bg-indigo-50"
+          >
+            {lang === "ru" ? "EN" : "RU"}
+          </button>
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
           {address ? `Wallet: ${address.slice(0, 6)}…${address.slice(-4)}` : t.walletNotConnected}
         </p>
 
-        {/* список мест */}
+        {/* Список мест */}
         <div className="grid gap-3 grid-cols-1">
           {list.map((p) => (
-            <div key={p.id} className="border rounded-lg p-3 flex gap-3 items-center">
+            <div
+              key={p.id}
+              className="border rounded-lg p-3 flex gap-3 items-center cursor-pointer hover:bg-indigo-50"
+              onClick={() => (window.location.href = `/frame/${p.id}`)}
+            >
               <div className="relative w-20 h-16 overflow-hidden rounded">
                 <Image src={p.image} alt={p.title} fill className="object-cover" />
               </div>
@@ -177,8 +169,12 @@ export default function Frame() {
                   ⭐ {t.avg}: {loadingAvg ? "…" : renderStars(avgMap[p.id])}
                 </p>
 
-                {/* кнопки оценки */}
-                <div className="mt-2 flex flex-wrap gap-2">
+                {/* Кнопки оценки — останавливаем всплытие, чтобы не триггерить переход по карточке */}
+                <div
+                  className="mt-2 flex flex-wrap gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
                   {[1, 2, 3, 4, 5].map((s) => (
                     <button
                       key={s}
@@ -191,6 +187,15 @@ export default function Frame() {
                       {s}⭐
                     </button>
                   ))}
+
+                  {/* Явная кнопка перехода */}
+                  <Link
+                    href={`/frame/${p.id}`}
+                    className="px-2 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {t.open}
+                  </Link>
                 </div>
               </div>
             </div>
