@@ -12,22 +12,22 @@ const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string
 export default function PlacePage() {
   const router = useRouter()
   const { id } = router.query
-  const placeId = id ? Number(id) : null
 
-  const place = placeId ? places.find((p) => p.id === placeId) : null
-
-  const [rating, setRating] = useState<number | null>(null)
-  const [address, setAddress] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  // 🔧 если id ещё не подгрузился
-  if (!placeId) {
+  // 👇 ждём пока id прогрузится
+  if (!id) {
     return <p className="p-6">Loading place…</p>
   }
+
+  const placeId = Number(id)
+  const place = places.find((p) => p.id === placeId)
 
   if (!place) {
     return <p className="p-6">Place not found</p>
   }
+
+  const [rating, setRating] = useState<number | null>(null)
+  const [address, setAddress] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   // подключение кошелька
   async function connectWallet() {
@@ -106,7 +106,10 @@ export default function PlacePage() {
 
     const signature = await window.ethereum.request({
       method: "eth_signTypedData_v4",
-      params: [rater, JSON.stringify({ domain, types, primaryType: "Rating", message })],
+      params: [
+        rater,
+        JSON.stringify({ domain, types, primaryType: "Rating", message }),
+      ],
     })
 
     const data = encodeFunctionData({
@@ -124,7 +127,8 @@ export default function PlacePage() {
   }
 
   useEffect(() => {
-    if (placeId) fetchRating()
+    fetchRating()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placeId])
 
   function renderStars(value: number) {
@@ -152,7 +156,9 @@ export default function PlacePage() {
             />
           </div>
           <div className="p-6 space-y-4">
-            <h1 className="text-3xl font-bold text-emerald-700">{place.title}</h1>
+            <h1 className="text-3xl font-bold text-emerald-700">
+              {place.title}
+            </h1>
             <p className="text-gray-700">{place.short}</p>
 
             {loading ? (
