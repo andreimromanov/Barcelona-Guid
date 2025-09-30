@@ -1,7 +1,22 @@
 {
+  "frame": {
+    "name": "Barcelona Guide",
+    "subtitle": "Rate Barcelona places on Base",
+    "homeUrl": "https://barcelona-guide-eight.vercel.app/frame",
+    "castShareUrl": "https://warpcast.com/~/compose?text=Rate%20Barcelona%20places%20in%20our%20mini%20app&embeds[]=https://barcelona-guide-eight.vercel.app/frame",
+    "category": "Travel",
+    "iconUrl": "https://barcelona-guide-eight.vercel.app/icon.png",
+    "previewUrl": "https://barcelona-guide-eight.vercel.app/preview.png",
+    "heroImageUrl": "https://barcelona-guide-eight.vercel.app/hero.png",
+    "splashImageUrl": "https://barcelona-guide-eight.vercel.app/splash.png",
+    "splashBackgroundColor": "#4052B6",
+    "screenshotUrls": [
+      "https://barcelona-guide-eight.vercel.app/screenshot1.png"
+    ]
+  },
   "accountAssociation": {
-    "header": "eyJmaWQiOjg2MzU1OSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGY0YjVGRDNGRDEyOWJCNDQ5NGQ4OTlhZWE5M2ZCNGIwMUI1OUUzRTkifQ",
-    "payload": "eyJkb21haW4iOiJiYXJjZWxvbmEtZ3VpZGUtZWlnaHQudmVyY2VsLmFwcCJ9",
-    "signature": "1PZTcnZSuOaz1p9myufephwGU477SJIBJWX8IGicW+5MGgTbmzRKLP/maHbCCCZ7d0QdRb/4NP/OHl38LzWMHhs="
+    "header": "",
+    "payload": "",
+    "signature": ""
   }
 }
