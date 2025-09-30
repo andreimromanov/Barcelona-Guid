@@ -11,10 +11,8 @@ import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import { places } from "../data/places"
 import { useRouter } from "next/router"
-import dynamic from "next/dynamic"
 
-const Entries = dynamic(() => import("../entries"), { ssr: false })
-export default Entries
+
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string}`
 
 type MyPlaceRating = {
