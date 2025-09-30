@@ -23,8 +23,15 @@ type MyPlaceRating = {
 declare global {
   interface Window {
     farcaster?: {
+      actions?: { ready: () => void }
       wallet?: {
         getAccounts?: () => Promise<string[]>
+        sendTransaction?: (tx: {
+          to: `0x${string}`
+          data?: `0x${string}`
+          value?: `0x${string}`
+        }) => Promise<`0x${string}`>
+        signTypedData?: (typedData: unknown) => Promise<`0x${string}`>
       }
     }
   }
