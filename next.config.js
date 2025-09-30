@@ -9,6 +9,16 @@ const nextConfig = {
       "upload.wikimedia.org", // для Википедии
     ],
   },
+  async headers() {
+    return [
+      {
+        source: '/.well-known/farcaster.json',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
+        ],
+      },
+    ]
+  },
 };
 
 module.exports = nextConfig;
