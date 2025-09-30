@@ -32,9 +32,7 @@ export default function Layout({ children }: LayoutProps) {
             <Link href="/entries" className="hover:text-indigo-600 transition">
               Записи
             </Link>
-            <Link href="/log" className="hover:text-indigo-600 transition">
-              Добавить
-            </Link>
+            
             <Link href="/profile" className="hover:text-indigo-600 transition">
               Профиль
             </Link>
