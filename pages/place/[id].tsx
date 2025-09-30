@@ -13,7 +13,6 @@ export default function PlacePage() {
   const router = useRouter()
   const { id } = router.query
 
-  // 👇 ждём пока id прогрузится
   if (!id) {
     return <p className="p-6">Loading place…</p>
   }
@@ -63,64 +62,22 @@ export default function PlacePage() {
     }
   }
 
-  // отправка оценки
+  // 🚀 новый способ: простая транзакция
   async function ratePlace(stars: number) {
     if (!address) {
       alert("Connect wallet first")
       return
     }
-    const rater = address as `0x${string}`
-    const deadline = Math.floor(Date.now() / 1000) + 5 * 60
-
-    const nextNonce = await publicClient.readContract({
-      abi: ratingsAbi,
-      address: CONTRACT_ADDRESS,
-      functionName: "getNextNonce",
-      args: [rater, placeId],
-    })
-
-    const domain = {
-      name: "BarcelonaRatings",
-      version: "1",
-      chainId: 8453,
-      verifyingContract: CONTRACT_ADDRESS,
-    }
-
-    const types = {
-      Rating: [
-        { name: "rater", type: "address" },
-        { name: "placeId", type: "uint256" },
-        { name: "rating", type: "uint8" },
-        { name: "nonce", type: "uint256" },
-        { name: "deadline", type: "uint256" },
-      ],
-    }
-
-    const message = {
-      rater,
-      placeId,
-      rating: stars,
-      nonce: Number(nextNonce),
-      deadline,
-    }
-
-    const signature = await window.ethereum.request({
-      method: "eth_signTypedData_v4",
-      params: [
-        rater,
-        JSON.stringify({ domain, types, primaryType: "Rating", message }),
-      ],
-    })
 
     const data = encodeFunctionData({
       abi: ratingsAbi,
-      functionName: "submitRating",
-      args: [rater, placeId, stars, deadline, signature],
+      functionName: "ratePlace",
+      args: [placeId, stars],
     })
 
     await window.ethereum.request({
       method: "eth_sendTransaction",
-      params: [{ from: rater, to: CONTRACT_ADDRESS, data, value: "0x0" }],
+      params: [{ from: address, to: CONTRACT_ADDRESS, data }],
     })
 
     fetchRating()
@@ -159,7 +116,9 @@ export default function PlacePage() {
             <h1 className="text-3xl font-bold text-emerald-700">
               {place.title}
             </h1>
-            <p className="text-gray-700 whitespace-pre-line">{place.long ?? place.short}</p>
+            <p className="text-gray-700 whitespace-pre-line">
+              {place.long ?? place.short}
+            </p>
 
             {loading ? (
               <p className="text-gray-500">Loading rating…</p>
