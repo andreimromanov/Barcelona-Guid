@@ -2,30 +2,66 @@
 import { useEffect, useState } from "react"
 import { readContract } from "@wagmi/core"
 import { useAccount } from "wagmi"
-import { wagmiClientConfig } from "../lib/wagmi"   // ✅ оставляем как было
-import ratingsAbi from "../abi/BarcelonaRatings.json" // ✅ под наш контракт
+import { wagmiClientConfig } from "../lib/wagmi"
+import ratingsAbi from "../abi/BarcelonaRatings.json"
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card"
 import { Button } from "../components/ui/button"
-import { ArrowUpCircle, ArrowDownCircle } from "lucide-react" // ✅ используем для сравнения с средним
+import { ArrowUpCircle, ArrowDownCircle } from "lucide-react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
-import { places } from "../data/places" // ✅ чтобы показать название/картинку места
+import { places } from "../data/places"
+import { useRouter } from "next/router"
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string}` // ✅ под наш проект
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string}`
 
 type MyPlaceRating = {
   placeId: number
   my: number          // моя оценка 1..5
-  avg: number | null  // средний рейтинг (может быть null, если нет рейтингов)
+  avg: number | null  // средний рейтинг
+}
+
+declare global {
+  interface Window {
+    farcaster?: {
+      wallet?: {
+        getAccounts?: () => Promise<string[]>
+      }
+    }
+  }
 }
 
 export default function EntriesPage() {
-  const { address, isConnected } = useAccount()
+  const router = useRouter()
+  const isMiniApp = router.pathname.startsWith("/frame")
+
+  // 🌐 Web (wagmi / RainbowKit)
+  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount()
+
+  // 📱 Mini dapp (Farcaster)
+  const [miniAddress, setMiniAddress] = useState<`0x${string}` | null>(null)
+  useEffect(() => {
+    if (!isMiniApp) return
+    let mounted = true
+    ;(async () => {
+      try {
+        const accs = await window.farcaster?.wallet?.getAccounts?.()
+        if (mounted) setMiniAddress(accs && accs[0] ? (accs[0] as `0x${string}`) : null)
+      } catch {
+        if (mounted) setMiniAddress(null)
+      }
+    })()
+    return () => { mounted = false }
+  }, [isMiniApp])
+
+  // единая модель состояния подключения
+  const address = (isMiniApp ? miniAddress : (wagmiAddress as `0x${string}` | null)) || null
+  const isConnected = isMiniApp ? Boolean(miniAddress) : wagmiConnected
+
   const [entries, setEntries] = useState<MyPlaceRating[]>([])
   const [loading, setLoading] = useState(false)
-  const [count, setCount] = useState(6) // сколько мест проверяем за раз
+  const [count, setCount] = useState(6) // сколько мест проверяем
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-  const [filter, setFilter] = useState<"all" | "4plus" | "5">("all") // ✅ фильтр по моей оценке
+  const [filter, setFilter] = useState<"all" | "4plus" | "5">("all")
 
   useEffect(() => {
     if (!isConnected || !address) return
@@ -33,18 +69,17 @@ export default function EntriesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, address, count, sortOrder, filter])
 
-  // ✅ вспомогательно: берём первые N places (как раньше брали N дат)
   async function safeGetPlaces(limit: number) {
     return places.slice(0, Math.max(0, limit))
   }
 
-  // читаем мою оценку; контракт мог назвать геттер по-разному — пробуем несколько
+  // читаем мою оценку (новый контракт: getUserRating)
   async function readMyRating(addr: `0x${string}`, placeId: number): Promise<number | null> {
     const candidates = [
       { fn: "getUserRating", args: [addr, BigInt(placeId)] },
+      // оставим фолбэки на случай отличий ABI
       { fn: "ratingOf", args: [addr, BigInt(placeId)] },
-      { fn: "userRating", args: [addr, BigInt(placeId)] },
-      { fn: "userRatings", args: [addr, BigInt(placeId)] }, // public mapping
+      { fn: "userRatings", args: [addr, BigInt(placeId)] },
     ] as const
 
     for (const c of candidates) {
@@ -55,10 +90,8 @@ export default function EntriesPage() {
           functionName: c.fn as any,
           args: c.args as any,
         })
-        // нормализуем (bigint | number | tuple)
         if (typeof out === "bigint" || typeof out === "number") return Number(out)
         if (Array.isArray(out) && out.length) return Number(out[0])
-        if (out && typeof out === "object" && "0" in (out as any)) return Number((out as any)["0"])
       } catch {
         // пробуем следующий вариант
       }
@@ -66,7 +99,7 @@ export default function EntriesPage() {
     return null
   }
 
-  // читаем средний рейтинг x100 -> делим на 100
+  // средний рейтинг ×100 → /100
   async function readAverage(placeId: number): Promise<number | null> {
     try {
       const x100 = await readContract(wagmiClientConfig, {
@@ -76,8 +109,7 @@ export default function EntriesPage() {
         args: [BigInt(placeId)],
       })
       const n = typeof x100 === "bigint" ? Number(x100) : Number(x100 || 0)
-      if (!isFinite(n)) return null
-      return n / 100
+      return isFinite(n) ? n / 100 : null
     } catch {
       return null
     }
@@ -89,7 +121,6 @@ export default function EntriesPage() {
       const chunk = await safeGetPlaces(count)
 
       const res: MyPlaceRating[] = []
-      // последовательно, чтобы не зафлудить RPC
       for (const p of chunk) {
         const my = await readMyRating(address as `0x${string}`, p.id)
         if (my && my > 0) {
@@ -98,14 +129,12 @@ export default function EntriesPage() {
         }
       }
 
-      // фильтр по моей оценке
       const filtered = res.filter((r) => {
         if (filter === "5") return r.my === 5
         if (filter === "4plus") return r.my >= 4
         return true
       })
 
-      // сортировка по моей оценке (как раньше по дате)
       const sorted = [...filtered].sort((a, b) =>
         sortOrder === "asc" ? a.my - b.my : b.my - a.my
       )
@@ -116,13 +145,27 @@ export default function EntriesPage() {
     }
   }
 
-  // «звёзды» для числа
   function stars(n?: number | null) {
     if (!n) return "—"
     const full = Math.max(0, Math.min(5, Math.floor(n)))
     const half = n - full >= 0.5
     return "⭐".repeat(full) + (half ? "✰" : "")
   }
+
+  // кнопка подключения для mini dapp
+  const MiniConnect = () => (
+    <button
+      onClick={async () => {
+        try {
+          const accs = await window.farcaster?.wallet?.getAccounts?.()
+          setMiniAddress(accs && accs[0] ? (accs[0] as `0x${string}`) : null)
+        } catch { setMiniAddress(null) }
+      }}
+      className="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition"
+    >
+      Подключить Farcaster-кошелёк
+    </button>
+  )
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col items-center p-6 space-y-6">
@@ -137,13 +180,16 @@ export default function EntriesPage() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-center">
-              <ConnectButton showBalance={false} accountStatus="address" />
+              {isMiniApp ? (
+                <MiniConnect />
+              ) : (
+                <ConnectButton showBalance={false} accountStatus="address" />
+              )}
             </div>
           </CardContent>
         </Card>
       ) : (
         <>
-          {/* Панель сортировки и фильтра */}
           <div className="flex gap-4">
             <select
               value={sortOrder}
@@ -164,7 +210,6 @@ export default function EntriesPage() {
             </select>
           </div>
 
-          {/* Карточка истории */}
           <Card className="w-full max-w-3xl shadow-sm border border-gray-200">
             <CardHeader>
               <CardTitle className="text-xl font-semibold text-indigo-700">
@@ -220,7 +265,6 @@ export default function EntriesPage() {
                 })}
               </div>
 
-              {/* Пагинация: проверяем ещё места */}
               {places.length > count && (
                 <div className="flex justify-center mt-4">
                   <Button
