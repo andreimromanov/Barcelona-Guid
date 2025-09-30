@@ -4,7 +4,7 @@
     "version": "1",
     "iconUrl": "https://barcelona-guide-eight.vercel.app/icon.png",
     "homeUrl": "https://barcelona-guide-eight.vercel.app",
-    "subtitle": "Rate Barcelona’s best places onchain",
+    "subtitle": "Rate Barcelona places on Base",
     "description": "Discover Barcelona’s top sights, cafés and neighborhoods. Leave 1-5 stars ratings recorded on Base (L2). Works on web and mini app",
     "primaryCategory": "social",
     "screenshotUrls": [
