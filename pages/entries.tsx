@@ -11,14 +11,31 @@ import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import { places } from "../data/places"
 import { useRouter } from "next/router"
-
+import { sdk } from "@farcaster/miniapp-sdk"
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string}`
 
 type MyPlaceRating = {
   placeId: number
-  my: number          // моя оценка 1..5
-  avg: number | null  // средний рейтинг
+  my: number
+  avg: number | null
+}
+
+declare global {
+  interface Window {
+    farcaster?: {
+      actions?: { ready: () => void }
+      wallet?: {
+        getAccounts?: () => Promise<string[]>
+        sendTransaction?: (tx: {
+          to: `0x${string}`
+          data?: `0x${string}`
+          value?: `0x${string}`
+        }) => Promise<`0x${string}`>
+        signTypedData?: (typedData: unknown) => Promise<`0x${string}`>
+      }
+    }
+  }
 }
 
 export default function EntriesPage() {
@@ -33,15 +50,40 @@ export default function EntriesPage() {
   useEffect(() => {
     if (!isMiniApp) return
     let mounted = true
-    ;(async () => {
+
+    const provider = sdk.wallet.ethProvider
+
+    const fetchAccounts = async () => {
       try {
-        const accs = await window.farcaster?.wallet?.getAccounts?.()
-        if (mounted) setMiniAddress(accs && accs[0] ? (accs[0] as `0x${string}`) : null)
+        // 1) сигнализируем Warpcast, что готовы
+        await sdk.actions.ready().catch(() => {})
+        // 2) пробуем провайдер miniapp
+        if (provider?.request) {
+          const accs = await provider.request({ method: "eth_accounts" })
+          const a = accs && accs[0]
+          if (mounted && typeof a === "string" && a.startsWith("0x")) {
+            setMiniAddress(a as `0x${string}`)
+            return
+          }
+        }
+        // 3) фолбэк на window.farcaster
+        const accs2 = await window.farcaster?.wallet?.getAccounts?.()
+        const a2 = accs2 && accs2[0]
+        if (mounted && typeof a2 === "string" && a2.startsWith("0x")) {
+          setMiniAddress(a2 as `0x${string}`)
+        }
       } catch {
         if (mounted) setMiniAddress(null)
       }
-    })()
-    return () => { mounted = false }
+    }
+
+    fetchAccounts()
+    // небольшой реполлинг — иногда провайдер инициализируется с задержкой
+    const id = window.setTimeout(fetchAccounts, 500)
+    return () => {
+      mounted = false
+      window.clearTimeout(id)
+    }
   }, [isMiniApp])
 
   // единая модель состояния подключения
@@ -50,7 +92,7 @@ export default function EntriesPage() {
 
   const [entries, setEntries] = useState<MyPlaceRating[]>([])
   const [loading, setLoading] = useState(false)
-  const [count, setCount] = useState(6) // сколько мест проверяем
+  const [count, setCount] = useState(6)
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [filter, setFilter] = useState<"all" | "4plus" | "5">("all")
 
@@ -64,11 +106,9 @@ export default function EntriesPage() {
     return places.slice(0, Math.max(0, limit))
   }
 
-  // читаем мою оценку (новый контракт: getUserRating)
   async function readMyRating(addr: `0x${string}`, placeId: number): Promise<number | null> {
     const candidates = [
       { fn: "getUserRating", args: [addr, BigInt(placeId)] },
-      // фолбэки на случай отличий ABI
       { fn: "ratingOf", args: [addr, BigInt(placeId)] },
       { fn: "userRatings", args: [addr, BigInt(placeId)] },
     ] as const
@@ -83,14 +123,11 @@ export default function EntriesPage() {
         })
         if (typeof out === "bigint" || typeof out === "number") return Number(out)
         if (Array.isArray(out) && out.length) return Number(out[0])
-      } catch {
-        // пробуем следующий вариант
-      }
+      } catch {}
     }
     return null
   }
 
-  // средний рейтинг ×100 → /100
   async function readAverage(placeId: number): Promise<number | null> {
     try {
       const x100 = await readContract(wagmiClientConfig, {
@@ -100,7 +137,7 @@ export default function EntriesPage() {
         args: [BigInt(placeId)],
       })
       const n = typeof x100 === "bigint" ? Number(x100) : Number(x100 || 0)
-      return Number.isFinite(n) ? n / 100 : null
+      return isFinite(n) ? n / 100 : null
     } catch {
       return null
     }
@@ -143,14 +180,25 @@ export default function EntriesPage() {
     return "⭐".repeat(full) + (half ? "✰" : "")
   }
 
-  // кнопка подключения для mini dapp
   const MiniConnect = () => (
     <button
       onClick={async () => {
         try {
-          const accs = await window.farcaster?.wallet?.getAccounts?.()
-          setMiniAddress(accs && accs[0] ? (accs[0] as `0x${string}`) : null)
-        } catch { setMiniAddress(null) }
+          await sdk.actions.ready().catch(() => {})
+          const provider = sdk.wallet.ethProvider
+          if (provider?.request) {
+            const accs = await provider.request({ method: "eth_accounts" })
+            const a = accs && accs[0]
+            if (a && typeof a === "string" && a.startsWith("0x")) {
+              setMiniAddress(a as `0x${string}`)
+              return
+            }
+          }
+          const accs2 = await window.farcaster?.wallet?.getAccounts?.()
+          setMiniAddress(accs2 && accs2[0] ? (accs2[0] as `0x${string}`) : null)
+        } catch {
+          setMiniAddress(null)
+        }
       }}
       className="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition"
     >
