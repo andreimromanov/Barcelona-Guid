@@ -1,4 +1,3 @@
-// pages/frame.tsx
 import Head from "next/head"
 import Image from "next/image"
 import Link from "next/link"
@@ -30,7 +29,7 @@ export default function Frame() {
   const [lang, setLang] = useState<"ru" | "en">("ru")
   const t = translations[lang]
 
-  // ✅ адрес теперь строго типизирован
+  // ✅ адрес строго типизирован
   const [address, setAddress] = useState<`0x${string}` | null>(null)
   const [avgMap, setAvgMap] = useState<Record<number, number>>({})
   const [loadingAvg, setLoadingAvg] = useState(false)
@@ -158,21 +157,21 @@ export default function Frame() {
           {address ? `Wallet: ${address.slice(0, 6)}…${address.slice(-4)}` : t.walletNotConnected}
         </p>
 
-        {/* Список мест */}
-        <div className="grid gap-3 grid-cols-1">
+        {/* Плитки 2 в ряд (минимальные правки) */}
+        <div className="grid gap-3 grid-cols-2">
           {list.map((p) => (
             <div
               key={p.id}
-              className="border rounded-lg p-3 flex gap-3 items-center cursor-pointer hover:bg-indigo-50"
+              className="border rounded-lg overflow-hidden cursor-pointer hover:shadow"
               onClick={() => (window.location.href = `/frame/${p.id}`)}
             >
-              <div className="relative w-20 h-16 overflow-hidden rounded">
+              <div className="relative w-full h-24">
                 <Image src={p.image} alt={p.title} fill className="object-cover" />
               </div>
 
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 truncate">{p.title}</p>
-                <p className="text-xs text-gray-600 truncate">{p.short}</p>
+              <div className="p-3">
+                <p className="font-medium text-gray-900 leading-tight line-clamp-2">{p.title}</p>
+                <p className="text-xs text-gray-600 line-clamp-2">{p.short}</p>
                 <p className="text-xs text-gray-800 mt-1">
                   ⭐ {t.avg}: {loadingAvg ? "…" : renderStars(avgMap[p.id])}
                 </p>
