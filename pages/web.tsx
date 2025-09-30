@@ -106,7 +106,14 @@ export default function Web() {
       ],
     }
 
-    const message = { rater, placeId, rating, nonce: nextNonce, deadline }
+    // 🔑 фикс: приводим BigInt → Number
+    const message = {
+      rater,
+      placeId,
+      rating,
+      nonce: Number(nextNonce),
+      deadline,
+    }
 
     const signature = await window.ethereum.request({
       method: "eth_signTypedData_v4",
