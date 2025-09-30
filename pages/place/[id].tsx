@@ -12,13 +12,18 @@ const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_RATINGS_CONTRACT as `0x${string
 export default function PlacePage() {
   const router = useRouter()
   const { id } = router.query
-  const placeId = Number(id)
+  const placeId = id ? Number(id) : null
 
-  const place = places.find((p) => p.id === placeId)
+  const place = placeId ? places.find((p) => p.id === placeId) : null
 
   const [rating, setRating] = useState<number | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // 🔧 если id ещё не подгрузился
+  if (!placeId) {
+    return <p className="p-6">Loading place…</p>
+  }
 
   if (!place) {
     return <p className="p-6">Place not found</p>
